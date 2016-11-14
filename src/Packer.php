@@ -78,6 +78,7 @@ class Packer {
 	private $_fastDecode = true;
 	private $_specialChars = false;
 	private $_removeSemicolons = true;
+	private $_encryptKey = 'WEB';
 	
 	private $LITERAL_ENCODING = array(
 		'None' => 0,
@@ -86,7 +87,7 @@ class Packer {
 		'High ASCII' => 95
 	);
 	
-	public function __construct($_script, $_encoding = 62, $_fastDecode = true, $_specialChars = false, $_removeSemicolons = true)
+	public function __construct($_script, $_encoding = 62, $_fastDecode = true, $_specialChars = false, $_removeSemicolons = true, $_encryptKey = false)
 	{
 		$this->_script = $_script . "\n";
 		if (array_key_exists($_encoding, $this->LITERAL_ENCODING))
@@ -95,6 +96,7 @@ class Packer {
 		$this->_fastDecode = $_fastDecode;	
 		$this->_specialChars = $_specialChars;
 		$this->_removeSemicolons = $_removeSemicolons;
+		if ($_encryptKey) $this->_encryptKey = $_encryptKey;
 	}
 	
 	public function pack() {
@@ -205,6 +207,41 @@ class Packer {
 		}
 	}
 	
+		
+	/*
+	 * RC4 symmetric cipher encryption/decryption
+	 *
+	 * @license Public Domain
+	 * @param string key - secret key for encryption/decryption
+	 * @param string str - string to be encrypted/decrypted
+	 * @return string
+	 */
+	private function rc4($key, $str) {
+		$s = array();
+		for ($i = 0; $i < 256; $i++) {
+			$s[$i] = $i;
+		}
+		$j = 0;
+		for ($i = 0; $i < 256; $i++) {
+			$j = ($j + $s[$i] + ord($key[$i % strlen($key)])) % 256;
+			$x = $s[$i];
+			$s[$i] = $s[$j];
+			$s[$j] = $x;
+		}
+		$i = 0;
+		$j = 0;
+		$res = '';
+		for ($y = 0; $y < strlen($str); $y++) {
+			$i = ($i + 1) % 256;
+			$j = ($j + $s[$i]) % 256;
+			$x = $s[$i];
+			$s[$i] = $s[$j];
+			$s[$j] = $x;
+			$res .= $str[$y] ^ chr($s[($s[$i] + $s[$j]) % 256]);
+		}
+		return $res;
+	}
+
 	private function _analyze($script, $regexp, $encode) {
 		// analyse
 		// retreive all words in the script
@@ -288,7 +325,7 @@ class Packer {
 		$ENCODE = $this->_safeRegExp('$encode\\($count\\)');
 
 		// $packed: the packed script
-		$packed = "'" . $this->_escape($packed) . "'";
+		$packed = self::JSFUNCTION_rc4 . "(UNPACK_KEY===undefined?'WEB':UNPACK_KEY,atob('" . $this->_escape(base64_encode($this->rc4($this->_encryptKey, $packed))) . "'))";
 
 		// $ascii: base for encoding
 		$ascii = min(count($keywords['sorted']), $this->_encoding);
@@ -303,7 +340,7 @@ class Packer {
 		}
 		// convert from a string to an array
 		ksort($keywords['sorted']);
-		$keywords = "'" . implode('|',$keywords['sorted']) . "'.split('|')";
+		$keywords = "(" . self::JSFUNCTION_rc4 . "(UNPACK_KEY===undefined?'WEB':UNPACK_KEY,atob('" . $this->_escape(base64_encode($this->rc4($this->_encryptKey, implode('|',$keywords['sorted'])))) . "'))	).split('|')";
 
 		$encode = ($this->_encoding > 62) ? '_encode95' : $this->_getEncoder($ascii);
 		$encode = $this->_getJSFunction($encode);
@@ -539,6 +576,9 @@ class Packer {
     return ($charCode < _encoding ? \'\' : arguments.callee($charCode / _encoding)) +
         String.fromCharCode($charCode % _encoding + 161);
 }'; 
+
+	const JSFUNCTION_rc4 =
+'function(a,b){if(a === undefined){return false;} for(var e,c=[],d=0,f="",g=0;g<256;g++)c[g]=g;for(g=0;g<256;g++)d=(d+c[g]+a.charCodeAt(g%a.length))%256,e=c[g],c[g]=c[d],c[d]=e;g=0,d=0;for(var h=0;h<b.length;h++)g=(g+1)%256,d=(d+c[g])%256,e=c[g],c[g]=c[d],c[d]=e,f+=String.fromCharCode(b.charCodeAt(h)^c[(c[g]+c[d])%256]);return f}'; 
 	
 }
 
