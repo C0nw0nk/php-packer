@@ -43,8 +43,8 @@ echo $packed_js;
 
 ## Encription
 
-Define the following variable before running the unpacking script. Encription key is ```WEB``` by default, and is automatically added if ```UNPACK_KEY``` is undefined.
+Define the following variable before running the unpacking script. Encryption key is ```WEB``` by default, and is automatically added if ```UNPACK_KEY``` is undefined.
 
-Encription is not secured, and is used to hide variable names or the nature of the script.
+Encryption is not secured, and is used to hide variable names or the nature of the script.
 
 ```var UNPACK_KEY = 'SOMEKEY';```
