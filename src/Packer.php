@@ -78,7 +78,7 @@ class Packer {
 	private $_fastDecode = true;
 	private $_specialChars = false;
 	private $_removeSemicolons = true;
-	private $_encryptKey = 'WEB';
+	private $_encryptKey = false;
 	
 	private $LITERAL_ENCODING = array(
 		'None' => 0,
@@ -325,7 +325,11 @@ class Packer {
 		$ENCODE = $this->_safeRegExp('$encode\\($count\\)');
 
 		// $packed: the packed script
-		$packed = self::JSFUNCTION_rc4 . "(UNPACK_KEY===undefined?'WEB':UNPACK_KEY,atob('" . $this->_escape(base64_encode($this->rc4($this->_encryptKey, $packed))) . "'))";
+		if ($this->_encryptKey) { // only encrypt with key if key has been defined
+			$packed = self::JSFUNCTION_rc4 . "(UNPACK_KEY===undefined?'WEB':UNPACK_KEY,atob('" . $this->_escape(base64_encode($this->rc4($this->_encryptKey, $packed))) . "'))";
+		} else {
+			$packed = "'" . $this->_escape($packed) . "'";
+		}
 
 		// $ascii: base for encoding
 		$ascii = min(count($keywords['sorted']), $this->_encoding);
@@ -340,7 +344,11 @@ class Packer {
 		}
 		// convert from a string to an array
 		ksort($keywords['sorted']);
-		$keywords = "(" . self::JSFUNCTION_rc4 . "(UNPACK_KEY===undefined?'WEB':UNPACK_KEY,atob('" . $this->_escape(base64_encode($this->rc4($this->_encryptKey, implode('|',$keywords['sorted'])))) . "'))	).split('|')";
+		if ($this->_encryptKey) { // only encrypt with key if key has been defined
+			$keywords = "(" . self::JSFUNCTION_rc4 . "(UNPACK_KEY===undefined?'WEB':UNPACK_KEY,atob('" . $this->_escape(base64_encode($this->rc4($this->_encryptKey, implode('|',$keywords['sorted'])))) . "'))	).split('|')";
+		} else {
+			$keywords = "'" . implode('|',$keywords['sorted']) . "'.split('|')";
+		}
 
 		$encode = ($this->_encoding > 62) ? '_encode95' : $this->_getEncoder($ascii);
 		$encode = $this->_getJSFunction($encode);
