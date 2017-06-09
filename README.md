@@ -41,7 +41,7 @@ echo $packed_js;
 ```
 
 
-## Encription
+## Encryption
 
 Define the following variable before running the unpacking script. Encryption key is ```WEB``` by default, and is automatically added if ```UNPACK_KEY``` is undefined.
 
